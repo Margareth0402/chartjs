@@ -4,6 +4,38 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 
+
+from django.shortcuts import render
+from django.contrib.auth.models import User
+from statistics import mean, median, mode, StatisticsError
+
+def user_statistics(request):
+    users = User.objects.all()
+
+    # Let's assume each user has a numeric field `profile.activity_count`
+    activity_counts = [user.profile.activity_count for user in users if hasattr(user, 'profile')]
+
+    total_users = len(users)
+
+    # Handle statistics safely
+    calculated_mean = round(mean(activity_counts), 2) if activity_counts else 0
+    calculated_median = round(median(activity_counts), 2) if activity_counts else 0
+    try:
+        calculated_mode = mode(activity_counts)
+    except StatisticsError:
+        calculated_mode = 'No unique mode'
+
+    context = {
+        'all_users': users,
+        'total_users': total_users,
+        'mean_users': calculated_mean,
+        'median_users': calculated_median,
+        'mode_users': calculated_mode,
+    }
+
+    return render(request, 'user_stats.html', context)
+
+
 # Create your views here.
 def login_view(request):
     if request.user.is_authenticated:
