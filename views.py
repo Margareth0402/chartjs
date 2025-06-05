@@ -1,67 +1,76 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import get_user_model
-
-
-from django.shortcuts import render
 from django.contrib.auth.models import User
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
 from statistics import mean, median, mode, StatisticsError
 
-def user_statistics(request):
-    users = User.objects.all()
 
-    # Let's assume each user has a numeric field `profile.activity_count`
-    activity_counts = [user.profile.activity_count for user in users if hasattr(user, 'profile')]
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('users')
 
-    total_users = len(users)
+    if request.method == "POST":
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect('users')
+    else:
+        form = AuthenticationForm()
 
-    # Handle statistics safely
-    calculated_mean = round(mean(activity_counts), 2) if activity_counts else 0
-    calculated_median = round(median(activity_counts), 2) if activity_counts else 0
+    return render(request, 'login.html', {'form': form})
+
+
+@login_required
+def users_view(request):
+    all_users = User.objects.all()
+    return render(request, 'users.html', {'all_users': all_users})
+
+
+@login_required
+def user_stats_view(request):
+    # Group users by registration month
+    users_per_month = (
+        User.objects.annotate(month=TruncMonth('date_joined'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+
+    # List of user counts per month
+    monthly_counts = [entry['count'] for entry in users_per_month]
+
+    # Compute statistics safely
     try:
-        calculated_mode = mode(activity_counts)
+        mean_users = round(mean(monthly_counts), 2)
     except StatisticsError:
-        calculated_mode = 'No unique mode'
+        mean_users = 0
+
+    try:
+        median_users = median(monthly_counts)
+    except StatisticsError:
+        median_users = 0
+
+    try:
+        mode_users = mode(monthly_counts)
+    except StatisticsError:
+        mode_users = 0
+
+    total_users = sum(monthly_counts)
 
     context = {
-        'all_users': users,
+        'all_users': User.objects.all(),
         'total_users': total_users,
-        'mean_users': calculated_mean,
-        'median_users': calculated_median,
-        'mode_users': calculated_mode,
+        'mean_users': mean_users,
+        'median_users': median_users,
+        'mode_users': mode_users,
     }
 
     return render(request, 'user_stats.html', context)
 
-
-# Create your views here.
-def login_view(request):
-    if request.user.is_authenticated:
-        return redirect('users')
-    
-    if request.method == "POST":
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user=form.get_user()
-            login(request, user )
-            return redirect('users')
-    else:
-        form=AuthenticationForm()
-    return render(request, 'login.html', {'form': form})
-
-@login_required
-def users_view(request):
-    User=get_user_model()
-    all_users = User.objects.all()
-    return render(request, 'users.html', {'all_users':all_users})
-
-@login_required
-def user_stats_view(request):
-    User=get_user_model()
-    total_users = User.objects.count()
-    return render(request, 'user_stats.html', {'total_users':total_users})
 
 @login_required
 def logout_view(request):

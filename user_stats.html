@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="container mt-4">
+<div class="card mt-4">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <h2 class="mb-4 text-center">User Statistics</h2>
+            <h2 class="mb-4 text-center">Statistics Summary</h2>
 
             <ul class="list-group">
                 {% for user in all_users %}
@@ -17,6 +17,15 @@
 
             <canvas id="usersBarChart" class="mt-4"></canvas>
 
+            <!-- Display Mean, Median, Mode -->
+            <div class="mt-4">
+                <p><strong>Total Users:</strong> {{ total_users }}</p>
+                <p><strong>Mean:</strong> {{ mean_users }}</p>
+                <p><strong>Median:</strong> {{ median_users }}</p>
+                <p><strong>Mode:</strong> {{ mode_users }}</p>
+            </div>  
+
+
             <div class="text-center mt-4">
                 <a href="{% url 'users' %}" class="btn btn-primary">Back to Users List</a>
                 <a href="{% url 'logout' %}" class="btn btn-danger ml-2">Logout</a>
@@ -26,18 +35,24 @@
 </div>
 
 <!-- Chart.js Bar Chart Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     const ctx = document.getElementById('usersBarChart').getContext('2d');
     const usersBarChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Total Users'],
+            labels: ['Total Users', 'Mean', 'Median', 'Mode'],
             datasets: [{
-                label: 'Number of Users',
-                data: [{{ total_users }}],
-                backgroundColor: ['#0d6efd'],
-                borderColor: ['#0a58ca'],
+                label: 'User Stats',
+                data: [
+                    {{ total_users|default:"0" }},
+                    {{ mean_users|default:"0" }},
+                    {{ median_users|default:"0" }},
+                    {{ mode_users|default:"0" }}
+                ],
+                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'],
+                borderColor: ['#0a58ca', '#146c43', '#d39e00', '#b02a37'],
                 borderWidth: 1,
                 borderRadius: 5
             }]
@@ -54,5 +69,6 @@
         }
     });
 </script>
+
 
 {% endblock %}
